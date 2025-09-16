@@ -39,6 +39,9 @@ The program supports the following operators:
    - Performing calculation → calculate(num1, operator, num2)
    - Printing results based on return values → print_function(result)
   
+### 👤 Author
 
-### Author: Abhisakh Sarma
-==========================
+- **Abhisakh Sarma** - [GitHub Profile]((https://github.com/abhisakh)
+```text
+========================================================================
+```
