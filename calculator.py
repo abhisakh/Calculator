@@ -1,49 +1,56 @@
 """
 ==============================================================================
-                              PYTHON CALCULATOR
+                             PYTHON CALCULATOR
 ==============================================================================
-Description:
-------------
-This is a command-line calculator program written in Python. It allows the user
-to perform a series of basic arithmetic operations by entering expressions in
-the form of: <number> <operator> <number>
 
-The program supports the following operators:
-    +  : Addition
-    -  : Subtraction
-    *  : Multiplication
-    /  : Division (returns float)
-    ~  : Floor Division (returns quotient and remainder)
+📝 Description:
+--------------
+A simple command-line calculator built in Python that allows users to perform
+basic arithmetic operations by entering expressions in the format:
 
-Features:
----------
-- Handles calculations of multiple digit numbers
-- Handles multiple calculations in a single run
+    <number> <operator> <number>
+
+Supported Operators:
+    +   → Addition
+    -   → Subtraction
+    *   → Multiplication
+    /   → Division (returns float)
+    ~   → Floor Division (returns quotient and remainder)
+
+✨ Features:
+-----------
+- Accepts multi-digit integer inputs
+- Supports multiple calculations in a single session
 - Ignores extra spaces in user input
-- Prevents division by zero
-- Checks return type of operations (single vs multiple results)
-- Clean, modular function design for ease of maintenance
-- Displays meaningful output based on the operation
+- Detects and prevents division by zero
+- Differentiates between single and multiple return values
+- Modular, clean function design for better readability and maintenance
+- Outputs results in a user-friendly format
 
-Limitations:
-------------
-- Only supports integer inputs
-- Does not support decimal numbers, negative numbers, or parentheses
-- Only handles expressions in the format: num1 operator num2
-
-Structure(FLOW):
+⚠️ Limitations:
 ---------------
-1. Getting user input (number of calculations) → input()
-2. Looping over the number of calculations → calculate_multiple(num)
+- Only supports **positive integer inputs**
+- Does not support:
+    • Decimal (float) numbers
+    • Negative numbers
+    • Parentheses or complex expressions
+- Input must strictly follow the format: num1 operator num2
+
+🔁 Program Flow:
+---------------
+1. Prompt user for number of calculations → `input()`
+2. Loop over that number → `calculate_multiple(num)`
 3. For each calculation:
-   - Getting calculation expression input → input() inside calculate_multiple
-   - Parsing input into components → split_expression(text_input)
-   - Performing calculation → calculate(num1, operator, num2)
-   - Printing results based on return values → print_function(result)
+    - Accept expression from user → `input()` inside `calculate_multiple()`
+    - Parse the expression → `split_expression(text_input)`
+    - Perform the calculation → `calculate(num1, operator, num2)`
+    - Display the result → `print_function(result)`
+
 ==============================================================================
 Author: Abhisakh Sarma
 ==============================================================================
 """
+
 
 #==================== FUNCTION TO PARSE INPUT ====================
 def split_expression(text_input):
@@ -82,14 +89,14 @@ def calculate(num1, operator, num2):
         return first_number * second_number
     elif operator == "/":
         if second_number == 0:
-            return "--Error: Division by zero is not possible--"
+            return "\033[91m--Error: Division by zero is not possible--\033[0m"
         return first_number / second_number
     elif operator == "~":
         if second_number == 0:
-            return "--Error: Division by zero is not possible--"
+            return "\033[91m--Error: Division by zero is not possible--\033[0m"
         return (first_number // second_number, first_number % second_number)
     else:
-        return "--Error: Unsupported operator--"
+        return "\033[91m--Error: Unsupported operator--\033[0m"
 
 
 #==================== FUNCTION TO PRINT RESULTS ====================
@@ -99,10 +106,10 @@ def print_function(result):
     If result is a tuple, prints quotient and remainder.
     """
     if isinstance(result, tuple):
-        print(f"The answer is {result[0]}")
-        print(f"The remainder is {result[1]}")
+        print(f"\033[92mThe answer is {result[0]}\033[0m")
+        print(f"\033[94mThe remainder is {result[1]}\033[0m")
     else:
-        print(f"The answer is {result}")
+        print(f"\033[92mThe answer is {result}\033[0m")
 
 
 #==================== FUNCTION TO HANDLE MULTIPLE CALCULATIONS ====================
@@ -114,15 +121,15 @@ def calculate_multiple(num):
     try:
         num = int(num)
     except ValueError:
-        print("--Error: Number of calculations must be an integer--")
+        print("\033[91m--Error: Number of calculations must be an integer--\033[0m")
         return
 
     for _ in range(num):
-        user_input1 = input("What do you want to calculate? (e.g. 12 + 5) ")
+        user_input1 = input("\033[93mWhat do you want to calculate? (e.g. 12 + 5) \033[0m")
         num1, operator, num2 = split_expression(user_input1)
 
         if num1 is None:
-            print("--Error: Invalid expression. Use format: num1 operator num2 (e.g. 5 + 3)--")
+            print("\033[91m--Error: Invalid expression. Use format: num1 operator num2 (e.g. 5 + 3)--\033[0m")
             continue
 
         result = calculate(num1, operator, num2)
@@ -131,6 +138,6 @@ def calculate_multiple(num):
 
 #==================== PROGRAM START ====================
 if __name__ == "__main__":
-    print("Welcome to the Python calculator!")
-    user_input2 = input("How many calculations do you want to do? ")
+    print("\033[94mWelcome to the Python calculator!\033[0m")
+    user_input2 = input("\033[93mHow many calculations do you want to do? \033[0m")
     calculate_multiple(user_input2)
