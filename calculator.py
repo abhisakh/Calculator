@@ -1,60 +1,55 @@
 """
 ==============================================================================
-                           PYTHON CALCULATOR - LEVEL 4 (Web App)
+                     PYTHON CALCULATOR - LEVEL 5 (AI Enhanced)
 ==============================================================================
 Description:
 ------------
-This is a web-based Python calculator implemented as a single-file Flask app.
-It provides a rich user interface with glowing colorful buttons and supports
-advanced arithmetic including trigonometric functions in both radians and degrees,
-variable assignment, and error handling.
+This is an AI-inspired web calculator implemented in Flask with natural language
+understanding of mathematical expressions via a rule-based parser.
 
-The app serves an HTML/CSS/JS frontend and exposes a backend calculation API
-that safely evaluates expressions submitted by the user.
+Features:
+---------
+- Parses simple natural language math queries into Python expressions using pattern matching.
+- Supports math operations including exponentiation, roots, trigonometry, constants, and variables.
+- Provides user-friendly error handling.
+- Web interface with glowing buttons.
 
-Run the app and open http://127.0.0.1:5000/ in your browser to use the calculator.
+AI Operation Logic
+------------------
+This calculator simulates AI by using a local, rule-based natural language processing
+(NLP) module that interprets user input expressed in conversational math queries and
+converts them into executable Python mathematical expressions.
+
+The logic uses explicitly defined patterns and string replacements to recognize common
+mathematical terms and functions within plain English sentences.
+
+For example, phrases such as "square root of 16", "factorial of 5", or "2 to the power 5"
+are translated into Python expressions like sqrt(16), factorial(5), and 2 ** 5.
+
+This deterministic pattern matching allows the calculator to handle a variety of natural
+language inputs without internet access or complex AI models.
+
+AI Model Used
+-------------
+No machine learning or external AI model is used. The parser is a set of
+regular expressions and string manipulation rules implemented in Python.
+
+Future versions can integrate cloud-based large language models (LLMs) such as OpenAI's
+GPT-4 for richer, context-aware interpretation and conversational math capabilities.
+
+Why Do We Need AI in the Calculator?
+
+- To allow users to input calculations in plain English rather than strict math syntax.
+- To handle flexible expressions without requiring knowledge of programming syntax.
+- To improve accessibility and usability for non-technical users.
 
 External Modules:
 -----------------
-- Flask (web framework)
+- Flask
 
-Install Flask if not already installed:
-    pip install flask
-
-Functionality:
---------------
-- Basic arithmetic: +, -, *, /, %, power (pow function)
-- Trigonometry: sin, cos, tan (radians) and sind, cosd, tand (degrees)
-- Variable assignment and usage (e.g. x = 10, x * 2)
-- Handles decimal numbers, parentheses, and complex expressions
-- Prevents unsafe code execution by restricting available functions and no built-ins
-- Shows meaningful error messages for invalid input or zero division
-- Responsive UI with glowing colored buttons and input field
-- Clear button and Enter key to calculate
-
-==============================================================================
-Program Flow:
---------------
-1. User opens web page (GET `/`):
-   - Server returns embedded HTML page with calculator UI.
-2. User enters expression and clicks 'Calculate' (or presses Enter):
-   - JavaScript sends expression to backend via POST `/calculate`.
-3. Backend receives expression:
-   - Parses and safely evaluates it using `eval` in restricted context.
-   - Supports variables saved in memory.
-   - Returns result or error message as JSON.
-4. Frontend displays the result below input field.
-5. User can clear input, continue calculations, or assign variables.
-
-==============================================================================
-Code Structure:
----------------
-- Imports & Setup: flask, math, safe function dictionary, variable store
-- Function: evaluate_expression(expr) - safely evaluates or assigns variables
-- Flask Routes:
-  - `/` : serves HTML/CSS/JS interface (rendered inline)
-  - `/calculate` : accepts JSON POST with expression, returns JSON result
-- Main block: runs app on localhost:5000 with debug mode
+Install:
+--------
+pip install flask
 
 ==============================================================================
 Author:
@@ -65,49 +60,88 @@ Abhisakh Sarma
 
 from flask import Flask, request, jsonify, render_template_string
 import math
+import re
 
 app = Flask(__name__)
 
-# Dictionary of safe math functions, including trig in degrees
+# Safe math functions including trig in degrees
 safe_functions = {k: v for k, v in math.__dict__.items() if not k.startswith("__")}
 safe_functions.update({
     'abs': abs,
     'round': round,
     'pow': pow,
+    'sqrt': math.sqrt,
+    'factorial': math.factorial,
     'sind': lambda x: math.sin(math.radians(x)),
     'cosd': lambda x: math.cos(math.radians(x)),
     'tand': lambda x: math.tan(math.radians(x)),
     'radians': math.radians,
     'degrees': math.degrees,
+    'pi': math.pi,
+    'e': math.e,
 })
 
-# In-memory variable store
 variables = {}
+
+def preprocess_expression(expr: str) -> str:
+    """
+    Convert natural language math phrases to valid Python expressions.
+
+    This is the core of the 'AI-inspired' rule-based parser.
+
+    Examples:
+    - '2 to the power 5' -> '2 ** 5'
+    - 'square root of 16' -> 'sqrt(16)'
+    - 'pi' -> 'pi' (math constant)
+    """
+    expr = expr.lower()
+
+    # Replace power phrases with Python exponent operator
+    expr = re.sub(r'\bto the power of\b', '**', expr)
+    expr = re.sub(r'\bto the power\b', '**', expr)
+    expr = re.sub(r'\bpower of\b', '**', expr)
+    expr = re.sub(r'\bpower\b', '**', expr)
+
+    # Replace square root expressions
+    expr = re.sub(r'square root of ([\d\.]+)', r'sqrt(\1)', expr)
+
+    # Replace factorial expressions
+    expr = re.sub(r'factorial of (\d+)', r'factorial(\1)', expr)
+
+    # Replace math constants
+    expr = re.sub(r'\bpi\b', 'pi', expr)
+    expr = re.sub(r'\be\b', 'e', expr)
+
+    # Replace division and multiplication words
+    expr = re.sub(r'divided by', '/', expr)
+    expr = re.sub(r'multiplied by', '*', expr)
+    expr = re.sub(r'\btimes\b', '*', expr)
+
+    # Remove filler words for simpler parsing
+    expr = re.sub(r'\bthe\b', '', expr)
+    expr = re.sub(r'\bof\b', '', expr)
+
+    # Clean up extra whitespace
+    expr = ' '.join(expr.split())
+
+    return expr
 
 def evaluate_expression(expr):
     """
-    Safely evaluates a mathematical expression.
+    Evaluate the expression safely after preprocessing.
 
-    Supports variable assignment of the form 'var = expression'.
-
-    Returns either the result of the expression or a meaningful error string.
+    Supports variable assignment (e.g. x = 10).
     """
     try:
-        # Check for assignment, but avoid comparison '=='
+        expr = preprocess_expression(expr)
         if "=" in expr and "==" not in expr:
             var, val = expr.split("=", 1)
             var = var.strip()
             val = val.strip()
-            # Only allow valid variable names (letters, digits, underscore, but not starting with digit)
-            if not var.isidentifier():
-                return "Error: Invalid variable name"
-            # Evaluate right-hand side expression safely
             result = eval(val, {"__builtins__": {}}, {**safe_functions, **variables})
-            # Store variable
             variables[var] = result
             return f"{var} = {result}"
         else:
-            # Evaluate expression directly
             result = eval(expr, {"__builtins__": {}}, {**safe_functions, **variables})
             return result
     except ZeroDivisionError:
@@ -115,7 +149,9 @@ def evaluate_expression(expr):
     except Exception as e:
         return f"Error: {e}"
 
-# Embedded HTML, CSS and JavaScript frontend (glowing theme with improved button sizes)
+# The rest of your Flask app and HTML template remain unchanged
+# ...
+
 HTML_PAGE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -134,61 +170,73 @@ HTML_PAGE = """
     margin: 0;
     padding: 20px;
   }
+
+  h1 {
+    text-align: center;
+    width: 100%;
+    margin-bottom: 24px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    font-size: 2.5rem;
+  }
+
   #calculator {
     background: #1e1e1e;
-    padding: 25px 30px 35px;
+    padding: 25px 30px 30px;
     border-radius: 15px;
-    width: 360px;
-    box-shadow: 0 0 20px #00fff7cc;
-input[type="text"] {
-  width: 100%;
-  font-size: 28px;
-  padding: 16px 20px;
-  border-radius: 12px;
-  border: none;
-  margin-bottom: 20px;
-  background: #121212;
-  color: white;
-  box-shadow: inset 0 0 10px #00fff7cc;
-  text-align: right;
+    width: 480px;  /* wider */
+    box-shadow: 0 0 25px #00fff7cc;
+  }
 
-  box-sizing: border-box; /* Include padding within width */
-  margin: 0 auto;         /* Center horizontally */
-  display: block;         /* Needed for margin auto to work */
-  padding-right: 20px;    /* Ensure enough padding on the right */
-}
+  input[type="text"] {
+    width: 100%;
+    font-size: 28px;
+    padding: 14px 20px;
+    border-radius: 14px;
+    border: none;
+    margin-bottom: 24px;
+    background: #121212;
+    color: white;
+    box-shadow: inset 0 0 10px #00fff7cc;
+    text-align: right;
+    box-sizing: border-box;
+    display: block;
+  }
 
   button {
     font-size: 24px;
-    padding: 18px 0;
+    padding: 14px 0;    /* shorter height */
     margin: 8px 6px;
     border-radius: 14px;
     border: none;
     cursor: pointer;
     color: #121212;
-    width: 70px;
-    box-shadow: 0 0 15px #000000;
-    transition: all 0.2s ease-in-out;
+    width: 90px;       /* wider buttons */
+    box-shadow: 0 0 14px #000000;
+    transition: all 0.25s ease-in-out;
     user-select: none;
   }
+
   button.operator {
     background-color: #ff9500;
     color: white;
-    box-shadow: 0 0 15px #ff9500;
+    box-shadow: 0 0 14px #ff9500;
   }
   button.operator:hover {
     box-shadow: 0 0 40px #ffbb33;
-    transform: scale(1.12);
+    transform: scale(1.1);
   }
+
   button.digit {
     background-color: #00fff7;
     color: black;
-    box-shadow: 0 0 15px #00fff7;
+    box-shadow: 0 0 14px #00fff7;
   }
   button.digit:hover {
     box-shadow: 0 0 40px #33ffff;
-    transform: scale(1.12);
+    transform: scale(1.1);
   }
+
   #result {
     margin-top: 28px;
     font-size: 26px;
@@ -199,47 +247,45 @@ input[type="text"] {
     text-align: center;
     letter-spacing: 0.02em;
   }
-  h1 {
-    margin-bottom: 14px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-  }
-  /* Container for rows of buttons */
+
   .button-row {
     display: flex;
     justify-content: center;
     margin-bottom: 12px;
   }
-  /* Special styling for the last row (clear & calculate) */
+
   #action-buttons {
     display: flex;
     justify-content: space-between;
-    margin-top: 20px;
+    margin-top: 24px;
   }
+
   #action-buttons button {
-    width: 165px;
-    font-size: 24px;
+    width: 220px;  /* wider */
+    font-size: 26px;
     padding: 16px 0;
     border-radius: 16px;
     box-shadow: none;
   }
-  #action-buttons button#clear-btn {
+
+  #clear-btn {
     background: #ff4444;
     color: white;
-    box-shadow: 0 0 25px #ff4444;
+    box-shadow: 0 0 24px #ff4444;
   }
-  #action-buttons button#clear-btn:hover {
-    box-shadow: 0 0 45px #ff7777;
-    transform: scale(1.1);
+  #clear-btn:hover {
+    box-shadow: 0 0 48px #ff7777;
+    transform: scale(1.05);
   }
-  #action-buttons button#calc-btn {
+
+  #calc-btn {
     background: #4caf50;
     color: white;
-    box-shadow: 0 0 25px #4caf50;
+    box-shadow: 0 0 24px #4caf50;
   }
-  #action-buttons button#calc-btn:hover {
-    box-shadow: 0 0 45px #7ee57e;
-    transform: scale(1.1);
+  #calc-btn:hover {
+    box-shadow: 0 0 48px #7ee57e;
+    transform: scale(1.05);
   }
 </style>
 </head>
@@ -331,17 +377,17 @@ input[type="text"] {
 </html>
 """
 
-@app.route('/')
-def home():
+@app.route("/", methods=["GET"])
+def index():
     return render_template_string(HTML_PAGE)
 
-@app.route('/calculate', methods=['POST'])
+@app.route("/calculate", methods=["POST"])
 def calculate():
     data = request.json
-    expression = data.get('expression', '')
-    result = evaluate_expression(expression)
-    return jsonify({'result': str(result)})
+    expr = data.get("expression", "")
+    result = evaluate_expression(expr)
+    return jsonify({"result": str(result)})
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("Starting Python Web Calculator on http://127.0.0.1:5000/")
     app.run(debug=True)
