@@ -1,61 +1,74 @@
 """
 ==============================================================================
-                           PYTHON CALCULATOR - LEVEL 3A (GUI)
+                           PYTHON CALCULATOR - LEVEL 4 (Web App)
 ==============================================================================
 Description:
 ------------
-This GUI calculator uses Tkinter + ttk with a dark theme and glowing colored buttons.
-Features:
-- Larger buttons with glowing hover effect
-- High contrast bright display area
-- Support arithmetic, variables, trig functions (degrees/radians)
-- Editable input field for expressions
+This is a web-based Python calculator implemented as a single-file Flask app.
+It provides a rich user interface with glowing colorful buttons and supports
+advanced arithmetic including trigonometric functions in both radians and degrees,
+variable assignment, and error handling.
 
-Features:
----------
-- GUI interface with clickable buttons and display field
-- Supports basic operators: +, -, *, /, %, parentheses
-- Supports floating point numbers and variable assignment (e.g., x = 10)
-- Includes safe math functions: sin, cos, tan (degree versions: sind, cosd, tand)
-- Displays results and error messages cleanly
-- Clear ('C') and Equals ('=') buttons for easy use
+The app serves an HTML/CSS/JS frontend and exposes a backend calculation API
+that safely evaluates expressions submitted by the user.
 
-Limitations:
-------------
-- Expression parsing is done using Python's eval with limited safe functions,
-  so complex expressions or unsafe code are not supported.
-- No history or memory buttons (can be added later)
-- Only simple variable assignment supported
+Run the app and open http://127.0.0.1:5000/ in your browser to use the calculator.
 
-Structure (FLOW):
+External Modules:
 -----------------
-1. Start program and open GUI window.
-2. User inputs expression by clicking buttons (numbers/operators).
-3. Expression is displayed in the entry widget.
-4. When user clicks '=' button:
-    - The current expression string is sent to the evaluator.
-    - If expression contains '=', treat as variable assignment:
-      * Split variable and value.
-      * Evaluate value using safe math functions and stored variables.
-      * Store variable and return result.
-    - Else, evaluate expression safely using allowed math functions and variables.
-    - Handle any exceptions (zero division, syntax errors) gracefully.
-    - Display result or error in the entry field.
-5. If user clicks 'C', clear the current expression.
-6. Repeat steps 2-5 until user closes the window.
+- Flask (web framework)
+
+Install Flask if not already installed:
+    pip install flask
+
+Functionality:
+--------------
+- Basic arithmetic: +, -, *, /, %, power (pow function)
+- Trigonometry: sin, cos, tan (radians) and sind, cosd, tand (degrees)
+- Variable assignment and usage (e.g. x = 10, x * 2)
+- Handles decimal numbers, parentheses, and complex expressions
+- Prevents unsafe code execution by restricting available functions and no built-ins
+- Shows meaningful error messages for invalid input or zero division
+- Responsive UI with glowing colored buttons and input field
+- Clear button and Enter key to calculate
+
+==============================================================================
+Program Flow:
+--------------
+1. User opens web page (GET `/`):
+   - Server returns embedded HTML page with calculator UI.
+2. User enters expression and clicks 'Calculate' (or presses Enter):
+   - JavaScript sends expression to backend via POST `/calculate`.
+3. Backend receives expression:
+   - Parses and safely evaluates it using `eval` in restricted context.
+   - Supports variables saved in memory.
+   - Returns result or error message as JSON.
+4. Frontend displays the result below input field.
+5. User can clear input, continue calculations, or assign variables.
+
+==============================================================================
+Code Structure:
+---------------
+- Imports & Setup: flask, math, safe function dictionary, variable store
+- Function: evaluate_expression(expr) - safely evaluates or assigns variables
+- Flask Routes:
+  - `/` : serves HTML/CSS/JS interface (rendered inline)
+  - `/calculate` : accepts JSON POST with expression, returns JSON result
+- Main block: runs app on localhost:5000 with debug mode
+
 ==============================================================================
 Author:
 -------
 Abhisakh Sarma
-
 ==============================================================================
 """
 
-import tkinter as tk
-from tkinter import ttk
+from flask import Flask, request, jsonify, render_template_string
 import math
 
-# Safe functions for eval
+app = Flask(__name__)
+
+# Dictionary of safe math functions, including trig in degrees
 safe_functions = {k: v for k, v in math.__dict__.items() if not k.startswith("__")}
 safe_functions.update({
     'abs': abs,
@@ -68,149 +81,267 @@ safe_functions.update({
     'degrees': math.degrees,
 })
 
+# In-memory variable store
 variables = {}
-last_result = None
 
-def evaluate_expression(expression: str):
-    global last_result
+def evaluate_expression(expr):
+    """
+    Safely evaluates a mathematical expression.
+
+    Supports variable assignment of the form 'var = expression'.
+
+    Returns either the result of the expression or a meaningful error string.
+    """
     try:
-        if "=" in expression and "==" not in expression:
-            var, val = expression.split("=", 1)
+        # Check for assignment, but avoid comparison '=='
+        if "=" in expr and "==" not in expr:
+            var, val = expr.split("=", 1)
             var = var.strip()
             val = val.strip()
+            # Only allow valid variable names (letters, digits, underscore, but not starting with digit)
+            if not var.isidentifier():
+                return "Error: Invalid variable name"
+            # Evaluate right-hand side expression safely
             result = eval(val, {"__builtins__": {}}, {**safe_functions, **variables})
+            # Store variable
             variables[var] = result
-            last_result = result
-            return result
+            return f"{var} = {result}"
         else:
-            result = eval(expression, {"__builtins__": {}}, {**safe_functions, **variables})
-            last_result = result
+            # Evaluate expression directly
+            result = eval(expr, {"__builtins__": {}}, {**safe_functions, **variables})
             return result
     except ZeroDivisionError:
         return "Error: Division by zero"
     except Exception as e:
         return f"Error: {e}"
 
-class GlowingButton(ttk.Button):
-    def __init__(self, master=None, **kw):
-        super().__init__(master=master, **kw)
-        self.default_style = kw.get('style', 'Glowing.TButton')
-        self.bind("<Enter>", self.on_enter)
-        self.bind("<Leave>", self.on_leave)
+# Embedded HTML, CSS and JavaScript frontend (glowing theme with improved button sizes)
+HTML_PAGE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Python Web Calculator</title>
+<style>
+  body {
+    background: #121212;
+    color: white;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0;
+    padding: 20px;
+  }
+  #calculator {
+    background: #1e1e1e;
+    padding: 25px 30px 35px;
+    border-radius: 15px;
+    width: 360px;
+    box-shadow: 0 0 20px #00fff7cc;
+input[type="text"] {
+  width: 100%;
+  font-size: 28px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: none;
+  margin-bottom: 20px;
+  background: #121212;
+  color: white;
+  box-shadow: inset 0 0 10px #00fff7cc;
+  text-align: right;
 
-    def on_enter(self, e):
-        self['style'] = self.default_style.replace('.TButton', 'Hover.TButton')
+  box-sizing: border-box; /* Include padding within width */
+  margin: 0 auto;         /* Center horizontally */
+  display: block;         /* Needed for margin auto to work */
+  padding-right: 20px;    /* Ensure enough padding on the right */
+}
 
-    def on_leave(self, e):
-        self['style'] = self.default_style
+  button {
+    font-size: 24px;
+    padding: 18px 0;
+    margin: 8px 6px;
+    border-radius: 14px;
+    border: none;
+    cursor: pointer;
+    color: #121212;
+    width: 70px;
+    box-shadow: 0 0 15px #000000;
+    transition: all 0.2s ease-in-out;
+    user-select: none;
+  }
+  button.operator {
+    background-color: #ff9500;
+    color: white;
+    box-shadow: 0 0 15px #ff9500;
+  }
+  button.operator:hover {
+    box-shadow: 0 0 40px #ffbb33;
+    transform: scale(1.12);
+  }
+  button.digit {
+    background-color: #00fff7;
+    color: black;
+    box-shadow: 0 0 15px #00fff7;
+  }
+  button.digit:hover {
+    box-shadow: 0 0 40px #33ffff;
+    transform: scale(1.12);
+  }
+  #result {
+    margin-top: 28px;
+    font-size: 26px;
+    min-height: 36px;
+    color: #4caf50;
+    word-wrap: break-word;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+  h1 {
+    margin-bottom: 14px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+  /* Container for rows of buttons */
+  .button-row {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+  /* Special styling for the last row (clear & calculate) */
+  #action-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+  }
+  #action-buttons button {
+    width: 165px;
+    font-size: 24px;
+    padding: 16px 0;
+    border-radius: 16px;
+    box-shadow: none;
+  }
+  #action-buttons button#clear-btn {
+    background: #ff4444;
+    color: white;
+    box-shadow: 0 0 25px #ff4444;
+  }
+  #action-buttons button#clear-btn:hover {
+    box-shadow: 0 0 45px #ff7777;
+    transform: scale(1.1);
+  }
+  #action-buttons button#calc-btn {
+    background: #4caf50;
+    color: white;
+    box-shadow: 0 0 25px #4caf50;
+  }
+  #action-buttons button#calc-btn:hover {
+    box-shadow: 0 0 45px #7ee57e;
+    transform: scale(1.1);
+  }
+</style>
+</head>
+<body>
 
-class CalculatorApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Python Calculator")
-        self.root.geometry("420x570")
-        self.root.configure(bg="#121212")  # Dark background
-        self.root.resizable(False, False)
+<h1>Python Web Calculator</h1>
+<div id="calculator">
+  <input type="text" id="expression" placeholder="Enter expression..." autofocus autocomplete="off" spellcheck="false" />
 
-        # Styles
-        style = ttk.Style(self.root)
-        style.theme_use('clam')
+  <div class="button-row">
+    <button class="digit" onclick="addChar('7')">7</button>
+    <button class="digit" onclick="addChar('8')">8</button>
+    <button class="digit" onclick="addChar('9')">9</button>
+    <button class="operator" onclick="addChar('/')">÷</button>
+  </div>
+  <div class="button-row">
+    <button class="digit" onclick="addChar('4')">4</button>
+    <button class="digit" onclick="addChar('5')">5</button>
+    <button class="digit" onclick="addChar('6')">6</button>
+    <button class="operator" onclick="addChar('*')">×</button>
+  </div>
+  <div class="button-row">
+    <button class="digit" onclick="addChar('1')">1</button>
+    <button class="digit" onclick="addChar('2')">2</button>
+    <button class="digit" onclick="addChar('3')">3</button>
+    <button class="operator" onclick="addChar('-')">−</button>
+  </div>
+  <div class="button-row">
+    <button class="digit" onclick="addChar('0')">0</button>
+    <button class="digit" onclick="addChar('.')">.</button>
+    <button class="operator" onclick="addChar('%')">%</button>
+    <button class="operator" onclick="addChar('+')">+</button>
+  </div>
 
-        # Display Entry style
-        style.configure('Display.TEntry',
-                        foreground='white',
-                        background='#1E1E1E',
-                        fieldbackground='#1E1E1E',
-                        font=('Segoe UI', 26, 'bold'),
-                        borderwidth=2,
-                        relief='sunken')
+  <div class="button-row">
+    <button class="operator" onclick="addChar('sin(')">sin(</button>
+    <button class="operator" onclick="addChar('cos(')">cos(</button>
+    <button class="operator" onclick="addChar('tan(')">tan(</button>
+  </div>
+  <div class="button-row">
+    <button class="operator" onclick="addChar('sind(')">sin d(</button>
+    <button class="operator" onclick="addChar('cosd(')">cos d(</button>
+    <button class="operator" onclick="addChar('tand(')">tan d(</button>
+  </div>
 
-        # Cyan glowing style for digits/functions
-        style.configure('Cyan.TButton',
-                        font=('Segoe UI', 18, 'bold'),
-                        padding=15,
-                        foreground='#00fff7',
-                        background='#121212',
-                        borderwidth=2,
-                        relief='raised')
+  <div id="action-buttons">
+    <button id="clear-btn" onclick="clearInput()">Clear</button>
+    <button id="calc-btn" onclick="calculate()">Calculate</button>
+  </div>
 
-        style.map('CyanHover.TButton',
-                  foreground=[('active', '#00ffff')],
-                  background=[('active', '#00aaaa')],
-                  relief=[('active', 'groove')])
+  <div id="result"></div>
+</div>
 
-        # Orange glowing style for operators
-        style.configure('Orange.TButton',
-                        font=('Segoe UI', 20, 'bold'),
-                        padding=15,
-                        foreground='#ff9500',
-                        background='#121212',
-                        borderwidth=2,
-                        relief='raised')
+<script>
+  function addChar(c) {
+    const input = document.getElementById('expression');
+    input.value += c;
+    input.focus();
+  }
 
-        style.map('OrangeHover.TButton',
-                  foreground=[('active', '#ffb347')],
-                  background=[('active', '#cc7a00')],
-                  relief=[('active', 'groove')])
+  function clearInput() {
+    document.getElementById('expression').value = '';
+    document.getElementById('result').textContent = '';
+  }
 
-        # Main display entry
-        self.entry_var = tk.StringVar()
-        self.entry = ttk.Entry(root, textvariable=self.entry_var, justify='right', style='Display.TEntry')
-        self.entry.grid(row=0, column=0, columnspan=5, sticky="nsew", padx=15, pady=20, ipady=20)
+  async function calculate() {
+    const expr = document.getElementById('expression').value;
+    if (!expr.trim()) return;
 
-        for i in range(5):
-            root.grid_columnconfigure(i, weight=1)
-        for i in range(1, 8):
-            root.grid_rowconfigure(i, weight=1)
+    try {
+      const response = await fetch('/calculate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({expression: expr})
+      });
+      const data = await response.json();
+      document.getElementById('result').textContent = data.result;
+    } catch (err) {
+      document.getElementById('result').textContent = 'Error communicating with server';
+    }
+  }
 
-        self.create_buttons()
+  document.getElementById('expression').addEventListener('keypress', function(e){
+    if (e.key === 'Enter') calculate();
+  });
+</script>
 
-    def create_buttons(self):
-        # Define which buttons are operators
-        operators = {'/', '*', '-', '+', '%', '=', 'C', '(', ')'}
-        buttons = [
-            ('7', 1, 0), ('8', 1, 1), ('9', 1, 2), ('/', 1, 3), ('C', 1, 4),
-            ('4', 2, 0), ('5', 2, 1), ('6', 2, 2), ('*', 2, 3), ('(', 2, 4),
-            ('1', 3, 0), ('2', 3, 1), ('3', 3, 2), ('-', 3, 3), (')', 3, 4),
-            ('0', 4, 0), ('.', 4, 1), ('%', 4, 2), ('+', 4, 3), ('=', 4, 4),
-            ('sin(', 5, 0), ('cos(', 5, 1), ('tan(', 5, 2), ('sin d(', 5, 3), ('cos d(', 5, 4),
-            ('tan d(', 6, 0), ('x', 6, 1), ('y', 6, 2), ('z', 6, 3), ('=', 6, 4)
-        ]
+</body>
+</html>
+"""
 
-        for (text, row, col) in buttons:
-            if text in operators:
-                style = 'Orange.TButton'
-            else:
-                style = 'Cyan.TButton'
+@app.route('/')
+def home():
+    return render_template_string(HTML_PAGE)
 
-            btn = GlowingButton(self.root, text=text, style=style)
-            btn.default_style = style
-            btn.config(command=lambda t=text: self.on_button_click(t))
-            btn.grid(row=row, column=col, sticky="nsew", padx=8, pady=8)
+@app.route('/calculate', methods=['POST'])
+def calculate():
+    data = request.json
+    expression = data.get('expression', '')
+    result = evaluate_expression(expression)
+    return jsonify({'result': str(result)})
 
-    def on_button_click(self, char):
-        # Map displayed button text to actual function call
-        mapping = {
-            'sin d(': 'sind(',
-            'cos d(': 'cosd(',
-            'tan d(': 'tand('
-        }
-        if char in mapping:
-            char = mapping[char]
-
-        if char == "=":
-            expr = self.entry_var.get()
-            result = evaluate_expression(expr)
-            self.entry_var.set(str(result))
-        elif char == "C":
-            self.entry_var.set("")
-        else:
-            current = self.entry_var.get()
-            new_expr = current + char
-            self.entry_var.set(new_expr)
-
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = CalculatorApp(root)
-    root.mainloop()
+if __name__ == '__main__':
+    print("Starting Python Web Calculator on http://127.0.0.1:5000/")
+    app.run(debug=True)
