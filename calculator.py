@@ -1,182 +1,216 @@
 """
 ==============================================================================
-                           PYTHON CALCULATOR (LEVEL 2)
+                           PYTHON CALCULATOR - LEVEL 3A (GUI)
 ==============================================================================
 Description:
 ------------
-This is a stateful command-line calculator that supports:
-- Full expressions
-- Variables
-- Memory commands
-- Trigonometric functions (including degree-based ones)
-- Math functions and safe evaluation
-- Command handling (help, history, vars, etc.)
+This GUI calculator uses Tkinter + ttk with a dark theme and glowing colored buttons.
+Features:
+- Larger buttons with glowing hover effect
+- High contrast bright display area
+- Support arithmetic, variables, trig functions (degrees/radians)
+- Editable input field for expressions
 
+Features:
+---------
+- GUI interface with clickable buttons and display field
+- Supports basic operators: +, -, *, /, %, parentheses
+- Supports floating point numbers and variable assignment (e.g., x = 10)
+- Includes safe math functions: sin, cos, tan (degree versions: sind, cosd, tand)
+- Displays results and error messages cleanly
+- Clear ('C') and Equals ('=') buttons for easy use
+
+Limitations:
+------------
+- Expression parsing is done using Python's eval with limited safe functions,
+  so complex expressions or unsafe code are not supported.
+- No history or memory buttons (can be added later)
+- Only simple variable assignment supported
+
+Structure (FLOW):
+-----------------
+1. Start program and open GUI window.
+2. User inputs expression by clicking buttons (numbers/operators).
+3. Expression is displayed in the entry widget.
+4. When user clicks '=' button:
+    - The current expression string is sent to the evaluator.
+    - If expression contains '=', treat as variable assignment:
+      * Split variable and value.
+      * Evaluate value using safe math functions and stored variables.
+      * Store variable and return result.
+    - Else, evaluate expression safely using allowed math functions and variables.
+    - Handle any exceptions (zero division, syntax errors) gracefully.
+    - Display result or error in the entry field.
+5. If user clicks 'C', clear the current expression.
+6. Repeat steps 2-5 until user closes the window.
 ==============================================================================
-Author: Abhisakh Sarma
-Updated: Level 2 - Sept 2025
+Author:
+-------
+Abhisakh Sarma
+
 ==============================================================================
 """
 
+import tkinter as tk
+from tkinter import ttk
 import math
 
-# ==================== ENVIRONMENT SETUP ====================
-# Allow safe math functions
+# Safe functions for eval
 safe_functions = {k: v for k, v in math.__dict__.items() if not k.startswith("__")}
-
-# Add custom safe functions
 safe_functions.update({
     'abs': abs,
     'round': round,
     'pow': pow,
-
-    # Trigonometric in degrees
     'sind': lambda x: math.sin(math.radians(x)),
     'cosd': lambda x: math.cos(math.radians(x)),
     'tand': lambda x: math.tan(math.radians(x)),
-
-    # Degree/radian conversion
     'radians': math.radians,
-    'degrees': math.degrees
+    'degrees': math.degrees,
 })
 
-# ==================== GLOBAL STATE ====================
-variables = {}       # user-defined variables
-history = []         # list of all expressions/results
-memory = None        # for 'store' and 'recall'
-last_result = None   # most recent result
+variables = {}
+last_result = None
 
-# ==================== EVALUATOR ====================
-def evaluate_expression(expression):
-    """
-    Evaluates an arithmetic expression or variable assignment.
-    """
-    global last_result, memory
-
+def evaluate_expression(expression: str):
+    global last_result
     try:
-        # Handle assignment (e.g. x = 5)
         if "=" in expression and "==" not in expression:
-            var_name, expr = expression.split("=", 1)
-            var_name = var_name.strip()
-            expr = expr.strip()
-            value = eval(expr, {"__builtins__": {}}, {**safe_functions, **variables})
-            variables[var_name] = value
-            last_result = value
-            return f"\033[94m{var_name} = {value}\033[0m"
-
-        # Regular expression evaluation
-        result = eval(expression, {"__builtins__": {}}, {**safe_functions, **variables})
-        last_result = result
-        return result
-
+            var, val = expression.split("=", 1)
+            var = var.strip()
+            val = val.strip()
+            result = eval(val, {"__builtins__": {}}, {**safe_functions, **variables})
+            variables[var] = result
+            last_result = result
+            return result
+        else:
+            result = eval(expression, {"__builtins__": {}}, {**safe_functions, **variables})
+            last_result = result
+            return result
     except ZeroDivisionError:
-        return "\033[91m--Error: Division or modulus by zero--\033[0m"
-    except NameError as e:
-        return f"\033[91m--Error: Unknown variable or function: {e}--\033[0m"
+        return "Error: Division by zero"
     except Exception as e:
-        return f"\033[91m--Error: Invalid expression: {e}--\033[0m"
+        return f"Error: {e}"
 
-# ==================== COMMAND HANDLER ====================
-def handle_command(command):
-    """
-    Handles internal commands like help, store, recall, history, etc.
-    """
-    global memory, last_result
+class GlowingButton(ttk.Button):
+    def __init__(self, master=None, **kw):
+        super().__init__(master=master, **kw)
+        self.default_style = kw.get('style', 'Glowing.TButton')
+        self.bind("<Enter>", self.on_enter)
+        self.bind("<Leave>", self.on_leave)
 
-    cmd = command.lower().strip()
+    def on_enter(self, e):
+        self['style'] = self.default_style.replace('.TButton', 'Hover.TButton')
 
-    if cmd == "help":
-        print("""
-\033[96mAvailable Commands:\033[0m
-  \033[93mexit\033[0m     → Exit the calculator
-  \033[93mhelp\033[0m     → Show this help message
-  \033[93mhistory\033[0m  → Show previous calculations
-  \033[93mstore\033[0m    → Store last result in memory
-  \033[93mrecall\033[0m   → Recall stored result
-  \033[93mclear\033[0m    → Clear memory and variables
-  \033[93mvars\033[0m     → Show all defined variables
+    def on_leave(self, e):
+        self['style'] = self.default_style
 
-\033[96mTrig Functions:\033[0m
-  \033[93msin(x)\033[0m   → x in radians
-  \033[93msind(x)\033[0m  → x in degrees
-  \033[93mcosd(x)\033[0m  → x in degrees
-  \033[93mtand(x)\033[0m  → x in degrees
-  \033[93mdegrees(x)\033[0m → Convert radians to degrees
-  \033[93mradians(x)\033[0m → Convert degrees to radians
-""")
+class CalculatorApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Python Calculator")
+        self.root.geometry("420x570")
+        self.root.configure(bg="#121212")  # Dark background
+        self.root.resizable(False, False)
 
-    elif cmd == "exit":
-        print("\033[94mGoodbye!\033[0m")
-        return "exit"
+        # Styles
+        style = ttk.Style(self.root)
+        style.theme_use('clam')
 
-    elif cmd == "history":
-        if not history:
-            print("\033[90m-- No history available --\033[0m")
-        else:
-            print("\033[96m--- History ---\033[0m")
-            for i, h in enumerate(history, 1):
-                print(f"{i}: {h}")
+        # Display Entry style
+        style.configure('Display.TEntry',
+                        foreground='white',
+                        background='#1E1E1E',
+                        fieldbackground='#1E1E1E',
+                        font=('Segoe UI', 26, 'bold'),
+                        borderwidth=2,
+                        relief='sunken')
 
-    elif cmd == "store":
-        if last_result is not None:
-            memory = last_result
-            print(f"\033[92mStored: {memory}\033[0m")
-        else:
-            print("\033[90m-- Nothing to store --\033[0m")
+        # Cyan glowing style for digits/functions
+        style.configure('Cyan.TButton',
+                        font=('Segoe UI', 18, 'bold'),
+                        padding=15,
+                        foreground='#00fff7',
+                        background='#121212',
+                        borderwidth=2,
+                        relief='raised')
 
-    elif cmd == "recall":
-        if memory is not None:
-            print(f"\033[92mRecalled: {memory}\033[0m")
-            return str(memory)
-        else:
-            print("\033[90m-- No memory stored --\033[0m")
+        style.map('CyanHover.TButton',
+                  foreground=[('active', '#00ffff')],
+                  background=[('active', '#00aaaa')],
+                  relief=[('active', 'groove')])
 
-    elif cmd == "clear":
-        variables.clear()
-        memory = None
-        print("\033[92mMemory and variables cleared.\033[0m")
+        # Orange glowing style for operators
+        style.configure('Orange.TButton',
+                        font=('Segoe UI', 20, 'bold'),
+                        padding=15,
+                        foreground='#ff9500',
+                        background='#121212',
+                        borderwidth=2,
+                        relief='raised')
 
-    elif cmd == "vars":
-        if not variables:
-            print("\033[90m-- No variables defined --\033[0m")
-        else:
-            print("\033[96m--- Variables ---\033[0m")
-            for var, val in variables.items():
-                print(f"{var} = {val}")
+        style.map('OrangeHover.TButton',
+                  foreground=[('active', '#ffb347')],
+                  background=[('active', '#cc7a00')],
+                  relief=[('active', 'groove')])
 
-    else:
-        print("\033[91m-- Unknown command. Type 'help' to see available commands --\033[0m")
+        # Main display entry
+        self.entry_var = tk.StringVar()
+        self.entry = ttk.Entry(root, textvariable=self.entry_var, justify='right', style='Display.TEntry')
+        self.entry.grid(row=0, column=0, columnspan=5, sticky="nsew", padx=15, pady=20, ipady=20)
 
-# ==================== MAIN LOOP ====================
-def calculate_loop():
-    """
-    Main REPL loop for continuous input and evaluation.
-    """
-    while True:
-        user_input = input("\033[93mEnter expression or command: \033[0m").strip()
+        for i in range(5):
+            root.grid_columnconfigure(i, weight=1)
+        for i in range(1, 8):
+            root.grid_rowconfigure(i, weight=1)
 
-        if user_input == "":
-            continue
+        self.create_buttons()
 
-        # Handle built-in commands
-        if user_input.lower() in ["exit", "help", "store", "recall", "history", "clear", "vars"]:
-            result = handle_command(user_input)
-            if result == "exit":
-                break
-            elif isinstance(result, str):  # e.g., recall returns value
-                user_input = result
+    def create_buttons(self):
+        # Define which buttons are operators
+        operators = {'/', '*', '-', '+', '%', '=', 'C', '(', ')'}
+        buttons = [
+            ('7', 1, 0), ('8', 1, 1), ('9', 1, 2), ('/', 1, 3), ('C', 1, 4),
+            ('4', 2, 0), ('5', 2, 1), ('6', 2, 2), ('*', 2, 3), ('(', 2, 4),
+            ('1', 3, 0), ('2', 3, 1), ('3', 3, 2), ('-', 3, 3), (')', 3, 4),
+            ('0', 4, 0), ('.', 4, 1), ('%', 4, 2), ('+', 4, 3), ('=', 4, 4),
+            ('sin(', 5, 0), ('cos(', 5, 1), ('tan(', 5, 2), ('sin d(', 5, 3), ('cos d(', 5, 4),
+            ('tan d(', 6, 0), ('x', 6, 1), ('y', 6, 2), ('z', 6, 3), ('=', 6, 4)
+        ]
+
+        for (text, row, col) in buttons:
+            if text in operators:
+                style = 'Orange.TButton'
             else:
-                continue
+                style = 'Cyan.TButton'
 
-        # Evaluate mathematical expression
-        result = evaluate_expression(user_input)
-        history.append(f"{user_input} = {result}")
-        print(f"\033[92mThe answer is: {result}\033[0m")
+            btn = GlowingButton(self.root, text=text, style=style)
+            btn.default_style = style
+            btn.config(command=lambda t=text: self.on_button_click(t))
+            btn.grid(row=row, column=col, sticky="nsew", padx=8, pady=8)
 
-# ==================== PROGRAM START ====================
+    def on_button_click(self, char):
+        # Map displayed button text to actual function call
+        mapping = {
+            'sin d(': 'sind(',
+            'cos d(': 'cosd(',
+            'tan d(': 'tand('
+        }
+        if char in mapping:
+            char = mapping[char]
+
+        if char == "=":
+            expr = self.entry_var.get()
+            result = evaluate_expression(expr)
+            self.entry_var.set(str(result))
+        elif char == "C":
+            self.entry_var.set("")
+        else:
+            current = self.entry_var.get()
+            new_expr = current + char
+            self.entry_var.set(new_expr)
+
+
 if __name__ == "__main__":
-    print("\033[96m" + "=" * 78)
-    print(" " * 28 + "PYTHON CALCULATOR - LEVEL 2")
-    print("=" * 78 + "\033[0m")
-    print("Type \033[93mhelp\033[0m to see available commands.\n")
-    calculate_loop()
+    root = tk.Tk()
+    app = CalculatorApp(root)
+    root.mainloop()
